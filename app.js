@@ -1,7 +1,7 @@
 /* =========================================================
    STAVBY FOTO — app.js
-   Vše běží lokálně v telefonu (IndexedDB), dokud nezmáčkneš
-   "Nahrát vše na OneDrive" na obrazovce Přehled.
+   Vše běží lokálně v telefonu (IndexedDB). Fotky se zálohují
+   ven jen na vyžádání, tlačítkem "Zálohovat vše do Souborů (ZIP)".
    ========================================================= */
 
 // ---------- IndexedDB wrapper ----------
@@ -48,13 +48,22 @@ function getAllStavby() {
   });
 }
 
+function formatFilenameTimestamp(ts) {
+  const d = new Date(ts);
+  const pad = (n, len = 2) => String(n).padStart(len, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    + `_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`
+    + `-${pad(d.getMilliseconds(), 3)}`; // ms na konci jen pro jistotu unikátnosti
+}
+
 function addPhoto(stavba, blob) {
   return new Promise((resolve, reject) => {
+    const now = Date.now();
     const record = {
       stavba,
       blob,
-      filename: `IMG_${Date.now()}.jpg`,
-      timestamp: Date.now(),
+      filename: `${formatFilenameTimestamp(now)}.jpg`,
+      timestamp: now,
       uploaded: 0
     };
     const r = tx("photos", "readwrite").add(record);
@@ -77,21 +86,6 @@ function getAllPhotos() {
     const r = tx("photos", "readonly").getAll();
     r.onsuccess = () => resolve(r.result);
     r.onerror = (e) => reject(e.target.error);
-  });
-}
-
-function markUploaded(id) {
-  return new Promise((resolve, reject) => {
-    const store = tx("photos", "readwrite");
-    const getReq = store.get(id);
-    getReq.onsuccess = () => {
-      const rec = getReq.result;
-      rec.uploaded = 1;
-      const putReq = store.put(rec);
-      putReq.onsuccess = () => resolve();
-      putReq.onerror = (e) => reject(e.target.error);
-    };
-    getReq.onerror = (e) => reject(e.target.error);
   });
 }
 
@@ -133,6 +127,15 @@ function renameStavba(oldName, newName) {
   });
 }
 
+function clearAllData() {
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(["stavby", "photos"], "readwrite");
+    t.objectStore("stavby").clear();
+    t.objectStore("photos").clear();
+    t.oncomplete = () => resolve();
+    t.onerror = (e) => reject(e.target.error);
+  });
+}
 // ---------- Stav appky ----------
 let currentStavba = localStorage.getItem("currentStavba") || null;
 let currentLightboxPhoto = null;
@@ -152,7 +155,6 @@ function switchScreen(name) {
   $("#screen-main").classList.toggle("screen--hidden", name !== "main");
   $("#screen-gallery").classList.toggle("screen--hidden", name !== "gallery");
   $("#screen-overview").classList.toggle("screen--hidden", name !== "overview");
-  $("#screen-folderpicker").classList.toggle("screen--hidden", name !== "folderpicker");
   document.querySelectorAll(".tab").forEach(t => {
     t.classList.toggle("tab--active", t.dataset.screen === name);
   });
@@ -208,7 +210,7 @@ async function renderThumbs() {
 
   photos.slice(0, 12).forEach(p => {
     const div = document.createElement("div");
-    div.className = "thumb" + (p.uploaded ? "" : " pending");
+    div.className = "thumb";
     const img = document.createElement("img");
     img.src = URL.createObjectURL(p.blob);
     div.appendChild(img);
@@ -225,6 +227,17 @@ $("#btnNewStavba").addEventListener("click", async () => {
   await addStavba(clean);
   currentStavba = clean;
   await renderMain();
+  toast(`Stavba "${clean}" přidána`);
+});
+
+$("#btnNewStavbaOverview").addEventListener("click", async () => {
+  const name = prompt("Název / adresa nové stavby:");
+  if (!name || !name.trim()) return;
+  const clean = name.trim();
+  await addStavba(clean);
+  if (!currentStavba) currentStavba = clean; // první stavba se rovnou nastaví jako aktivní
+  await renderMain();
+  await renderOverview();
   toast(`Stavba "${clean}" přidána`);
 });
 
@@ -351,18 +364,13 @@ async function renderOverview() {
   listEl.innerHTML = "";
 
   $("#backupCount").textContent = `${allPhotos.length} fotek`;
-  $("#targetFolderLabel").textContent = getTargetRootLabel();
 
   if (stavby.length === 0) {
     listEl.innerHTML = `<p style="color:var(--text-dim); font-family:'IBM Plex Mono',monospace; font-size:13px;">Zatím žádné stavby. Přidej první na hlavní obrazovce.</p>`;
   }
 
-  let totalPending = 0;
-
   stavby.forEach(s => {
     const photos = allPhotos.filter(p => p.stavba === s.name);
-    const pending = photos.filter(p => !p.uploaded).length;
-    totalPending += pending;
 
     const item = document.createElement("div");
     item.className = "ov-item";
@@ -371,24 +379,34 @@ async function renderOverview() {
         <div class="ov-item-name">${escapeHtml(s.name)}</div>
         <div class="ov-item-meta">${photos.length} snímků celkem</div>
       </div>
-      <div style="display:flex; align-items:center; gap:8px;">
-        <button class="ov-edit-btn" data-name="${escapeHtml(s.name)}" aria-label="Přejmenovat">
-          <i class="ti ti-pencil" aria-hidden="true"></i>
-        </button>
-        <div class="ov-badge ${pending > 0 ? "ov-badge--pending" : "ov-badge--done"}">
-          ${pending > 0 ? pending + " čeká" : "hotovo"}
-        </div>
-      </div>
+      <button class="ov-edit-btn" data-name="${escapeHtml(s.name)}" aria-label="Přejmenovat">
+        <i class="ti ti-pencil" aria-hidden="true"></i>
+      </button>
     `;
     listEl.appendChild(item);
   });
-
-  const btn = $("#btnUploadAll");
-  btn.disabled = totalPending === 0;
-  btn.textContent = totalPending > 0
-    ? `Nahrát vše na OneDrive (${totalPending})`
-    : "Vše nahráno";
 }
+
+$("#btnResetAll").addEventListener("click", async () => {
+  const allPhotos = await getAllPhotos();
+  const stavby = await getAllStavby();
+  if (stavby.length === 0 && allPhotos.length === 0) {
+    toast("Není co mazat.");
+    return;
+  }
+
+  const ok = confirm(
+    `Opravdu smazat VŠECHNY stavby (${stavby.length}) a VŠECHNY fotky (${allPhotos.length}) z appky?\n\nTohle nejde vzít zpět. Fotky, které jsi ještě nezálohoval/a přes "Zálohovat vše do Souborů (ZIP)", se ztratí.`
+  );
+  if (!ok) return;
+
+  await clearAllData();
+  currentStavba = null;
+  localStorage.removeItem("currentStavba");
+  await renderMain();
+  await renderOverview();
+  toast("Smazáno — appka je prázdná");
+});
 
 $("#btnExportZip").addEventListener("click", async () => {
   const status = $("#uploadStatus");
@@ -417,276 +435,10 @@ $("#btnExportZip").addEventListener("click", async () => {
   status.textContent = `Záloha "${filename}" stažena — ulož ji ve Files do bezpečného místa.`;
 });
 
-// =========================================================
-// ONEDRIVE — přihlášení přesměrováním + výběr cílové složky
-// =========================================================
-const SCOPES = ["Files.ReadWrite"];
-let msalInstance;
-let graphAccount;
-
-function initMsal() {
-  msalInstance = new msal.PublicClientApplication({
-    auth: {
-      clientId: APP_CONFIG.clientId,
-      authority: APP_CONFIG.authority,
-      redirectUri: APP_CONFIG.redirectUri
-    },
-    cache: { cacheLocation: "localStorage" }
-  });
-}
-
-// Po návratu z přihlašovací stránky (nebo při běžném načtení appky)
-async function completeRedirectIfAny() {
-  try {
-    const resp = await msalInstance.handleRedirectPromise();
-    if (resp && resp.account) {
-      graphAccount = resp.account;
-    } else {
-      const accounts = msalInstance.getAllAccounts();
-      if (accounts.length > 0) graphAccount = accounts[0];
-    }
-  } catch (err) {
-    console.error("Přihlášení selhalo:", err);
-    $("#uploadStatus").textContent = `Přihlášení selhalo: ${err.message}`;
-  }
-
-  const pending = sessionStorage.getItem("stavbyPendingAction");
-  if (pending && graphAccount) {
-    sessionStorage.removeItem("stavbyPendingAction");
-    switchScreen("overview");
-    await handleUploadRequest();
-  }
-}
-
-async function getGraphToken() {
-  try {
-    const result = await msalInstance.acquireTokenSilent({
-      scopes: SCOPES,
-      account: graphAccount
-    });
-    return result.accessToken;
-  } catch (e) {
-    // Tiché obnovení nevyšlo — přesměrujeme na přihlášení znovu
-    sessionStorage.setItem("stavbyPendingAction", "upload");
-    await msalInstance.acquireTokenRedirect({ scopes: SCOPES });
-    return null; // appka teď opustí stránku
-  }
-}
-
-async function graphFetch(path, token, options = {}) {
-  const res = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(options.headers || {})
-    }
-  });
-  return res;
-}
-
-function encodeURIPath(path) {
-  return path.split("/").map(encodeURIComponent).join("/");
-}
-
-async function ensureFolder(token, folderPath) {
-  if (!folderPath) return; // prázdná cesta = kořen OneDrive, ten už existuje
-  const getRes = await graphFetch(`/me/drive/root:/${encodeURIPath(folderPath)}`, token);
-  if (getRes.ok) return;
-
-  const parts = folderPath.split("/");
-  const name = parts.pop();
-  const parentPath = parts.join("/");
-
-  const createUrl = parentPath
-    ? `/me/drive/root:/${encodeURIPath(parentPath)}:/children`
-    : `/me/drive/root/children`;
-
-  const createRes = await graphFetch(createUrl, token, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name,
-      folder: {},
-      "@microsoft.graph.conflictBehavior": "fail"
-    })
-  });
-
-  if (!createRes.ok && createRes.status !== 409) {
-    throw new Error(`Nepodařilo se vytvořit složku "${folderPath}" (${createRes.status})`);
-  }
-}
-
-async function uploadPhoto(token, stavba, photo) {
-  const root = getTargetRootPath() || "";
-  const folderPath = root ? `${root}/${stavba}` : stavba;
-
-  if (root) await ensureFolder(token, root);
-  await ensureFolder(token, folderPath);
-
-  const uploadPath = `${folderPath}/${photo.filename}`;
-  const res = await graphFetch(
-    `/me/drive/root:/${encodeURIPath(uploadPath)}:/content`,
-    token,
-    {
-      method: "PUT",
-      headers: { "Content-Type": "image/jpeg" },
-      body: photo.blob
-    }
-  );
-  if (!res.ok) {
-    throw new Error(`Nahrání selhalo (${res.status})`);
-  }
-}
-
-// ---------- Výběr cílové složky ----------
-function getTargetRootPath() {
-  return localStorage.getItem("oneDriveRootPath"); // null = zatím nevybráno
-}
-
-function getTargetRootLabel() {
-  return localStorage.getItem("oneDriveRootLabel") || "nevybráno";
-}
-
-let pickerToken = null;
-let pickerStack = [{ id: null, name: "OneDrive" }];
-
-async function listFolderChildren(token, folderId) {
-  const url = folderId
-    ? `/me/drive/items/${folderId}/children?$select=id,name,folder`
-    : `/me/drive/root/children?$select=id,name,folder`;
-  const res = await graphFetch(url, token);
-  if (!res.ok) throw new Error(`Nepodařilo se načíst složky (${res.status})`);
-  const data = await res.json();
-  return (data.value || []).filter(item => item.folder);
-}
-
-async function openFolderPicker() {
-  const token = await getGraphToken();
-  if (!token) return; // appka přesměrovává na přihlášení
-  pickerToken = token;
-  pickerStack = [{ id: null, name: "OneDrive" }];
-  switchScreen("folderpicker");
-  await renderFolderPicker();
-}
-
-async function renderFolderPicker() {
-  $("#folderBreadcrumb").textContent = pickerStack.map(s => s.name).join(" / ");
-  const listEl = $("#folderList");
-  listEl.innerHTML = `<p class="folder-empty">Načítám…</p>`;
-  const current = pickerStack[pickerStack.length - 1];
-  try {
-    const children = await listFolderChildren(pickerToken, current.id);
-    listEl.innerHTML = "";
-    if (children.length === 0) {
-      listEl.innerHTML = `<p class="folder-empty">Žádné podsložky — klidně vyber tuhle přes tlačítko dole.</p>`;
-    }
-    children.forEach(f => {
-      const row = document.createElement("div");
-      row.className = "folder-row";
-      row.innerHTML = `<i class="ti ti-folder" aria-hidden="true"></i><span>${escapeHtml(f.name)}</span>`;
-      row.addEventListener("click", () => {
-        pickerStack.push({ id: f.id, name: f.name });
-        renderFolderPicker();
-      });
-      listEl.appendChild(row);
-    });
-  } catch (err) {
-    listEl.innerHTML = `<p class="folder-empty">Chyba: ${escapeHtml(err.message)}</p>`;
-  }
-}
-
-$("#btnFolderCancel").addEventListener("click", () => {
-  if (pickerStack.length > 1) {
-    pickerStack.pop();
-    renderFolderPicker();
-  } else {
-    switchScreen("overview");
-  }
-});
-
-$("#btnFolderChoose").addEventListener("click", async () => {
-  const path = pickerStack.slice(1).map(s => s.name).join("/");
-  const label = pickerStack.map(s => s.name).join(" / ");
-  localStorage.setItem("oneDriveRootPath", path);
-  localStorage.setItem("oneDriveRootLabel", label);
-  toast("Cílová složka nastavena");
-  switchScreen("overview");
-
-  const pending = sessionStorage.getItem("stavbyPendingAction");
-  if (pending === "upload-ready") {
-    sessionStorage.removeItem("stavbyPendingAction");
-    await performUpload();
-  }
-});
-
-$("#btnChangeFolder").addEventListener("click", () => {
-  if (!graphAccount) { handleUploadRequest(); return; }
-  openFolderPicker();
-});
-
-// ---------- Spuštění nahrávání ----------
-async function handleUploadRequest() {
-  if (APP_CONFIG.clientId === "SEM-VLOZ-SVOJE-CLIENT-ID") {
-    $("#uploadStatus").textContent = "⚠ Appka ještě není nastavená pro OneDrive.\nViz README.md → \"Nastavení OneDrive přihlášení\".";
-    return;
-  }
-
-  if (!graphAccount) {
-    sessionStorage.setItem("stavbyPendingAction", "upload");
-    $("#uploadStatus").textContent = "Přesměrovávám na přihlášení…";
-    await msalInstance.loginRedirect({ scopes: SCOPES });
-    return; // appka teď opustí stránku
-  }
-
-  if (getTargetRootPath() === null) {
-    sessionStorage.setItem("stavbyPendingAction", "upload-ready");
-    await openFolderPicker();
-    return;
-  }
-
-  await performUpload();
-}
-
-async function performUpload() {
-  const statusEl = $("#uploadStatus");
-  const btn = $("#btnUploadAll");
-  try {
-    btn.disabled = true;
-    statusEl.textContent = "Získávám přístup…";
-    const token = await getGraphToken();
-    if (!token) return; // appka přesměrovává, obnovení proběhne po návratu
-
-    const allPhotos = (await getAllPhotos()).filter(p => !p.uploaded);
-    if (allPhotos.length === 0) {
-      statusEl.textContent = "Není co nahrávat.";
-      return;
-    }
-    let done = 0;
-    for (const photo of allPhotos) {
-      statusEl.textContent = `Nahrávám ${done + 1}/${allPhotos.length}\n(${photo.stavba})`;
-      await uploadPhoto(token, photo.stavba, photo);
-      await markUploaded(photo.id);
-      done++;
-    }
-    statusEl.textContent = `Hotovo — nahráno ${done} fotek.`;
-    toast("Nahrávání dokončeno ✓");
-    await renderOverview();
-  } catch (err) {
-    console.error(err);
-    statusEl.textContent = `Chyba: ${err.message}`;
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-$("#btnUploadAll").addEventListener("click", handleUploadRequest);
-
 // ---------- Start ----------
 (async function init() {
   db = await openDB();
-  initMsal();
   await renderMain();
-  await completeRedirectIfAny();
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(() => {});

@@ -45,9 +45,7 @@
       <button class="icon-btn" id="btnGallery" aria-label="Galerie">
         <i class="ti ti-photo" aria-hidden="true"></i>
       </button>
-      <button class="shutter" id="btnShoot" aria-label="Vyfotit">
-        <span class="shutter-ring"></span>
-      </button>
+      <button class="shutter" id="btnShoot" aria-label="Vyfotit"></button>
       <span class="controls-spacer"></span>
     </div>
     <p class="shutter-hint" id="shutterHint">Vyber stavbu a foť</p>
@@ -72,35 +70,23 @@
   <section class="screen screen--hidden" id="screen-overview">
     <header class="ov-header">
       <h1>Přehled staveb</h1>
-      <p class="ov-sub">Fotky se nahrávají hromadně, ne po jedné.</p>
+      <p class="ov-sub">Zálohuj fotky do Souborů, jakmile máš čas.</p>
     </header>
 
     <p class="backup-note">Lokální záloha: <b id="backupCount">0 fotek</b> uloženo přímo v telefonu — funguje i bez signálu.</p>
 
+    <button class="new-stavba-btn" id="btnNewStavbaOverview">+ Přidat stavbu</button>
+
     <div class="ov-list" id="ovList"></div>
 
-    <div class="target-folder-row">
-      <span>Cíl na OneDrive: <b id="targetFolderLabel">nevybráno</b></span>
-      <button id="btnChangeFolder">Změnit</button>
-    </div>
-
-    <button class="export-btn" id="btnExportZip">
+    <button class="upload-btn" id="btnExportZip">
       <i class="ti ti-file-zip" aria-hidden="true" style="margin-right:6px;"></i>Zálohovat vše do Souborů (ZIP)
     </button>
-    <button class="upload-btn" id="btnUploadAll">Nahrát vše na OneDrive</button>
     <div class="upload-status" id="uploadStatus"></div>
-  </section>
 
-  <!-- ============ VÝBĚR SLOŽKY NA ONEDRIVE ============ -->
-  <section class="screen screen--hidden" id="screen-folderpicker">
-    <div class="gal-header">
-      <button class="gal-back" id="btnFolderCancel" aria-label="Zrušit"><i class="ti ti-arrow-left" aria-hidden="true"></i></button>
-      <h1>Vyber složku</h1>
-      <span style="width:20px;"></span>
-    </div>
-    <div class="breadcrumb" id="folderBreadcrumb"></div>
-    <div class="folder-list" id="folderList"></div>
-    <button class="upload-btn" id="btnFolderChoose">Vybrat tuto složku</button>
+    <button class="danger-btn" id="btnResetAll">
+      <i class="ti ti-trash" aria-hidden="true" style="margin-right:6px;"></i>Smazat všechny stavby a fotky
+    </button>
   </section>
 
   <!-- ============ SPODNÍ NAVIGACE ============ -->
@@ -125,10 +111,8 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.44.0/iconfont/tabler-icons.min.css">
-<script src="config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
