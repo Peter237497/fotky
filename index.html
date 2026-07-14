@@ -21,11 +21,13 @@
 
     <header class="titleblock">
       <div class="titleblock-row">
-        <span class="tb-label">STAVBA</span>
-        <select id="stavbaSelect" class="tb-select"></select>
-        <button class="tb-edit-btn" id="btnEditStavba" aria-label="Přejmenovat stavbu">
-          <i class="ti ti-pencil" aria-hidden="true"></i>
-        </button>
+        <span class="tb-label">OBJEKT</span>
+        <div class="stavba-pill">
+          <select id="stavbaSelect" class="tb-select"></select>
+          <button class="tb-edit-btn" id="btnEditStavba" aria-label="Přejmenovat objekt">
+            <i class="ti ti-pencil" aria-hidden="true"></i>
+          </button>
+        </div>
       </div>
       <div class="titleblock-row titleblock-row--split">
         <div>
@@ -39,16 +41,20 @@
       </div>
     </header>
 
-    <button class="new-stavba-btn" id="btnNewStavba">+ Nová stavba</button>
+    <button class="new-stavba-btn" id="btnNewStavba">+ Nový objekt</button>
 
     <div class="controls-row">
-      <button class="icon-btn" id="btnGallery" aria-label="Galerie">
+      <button class="gallery-btn" id="btnGallery" aria-label="Galerie">
         <i class="ti ti-photo" aria-hidden="true"></i>
+        <span>Galerie</span>
       </button>
       <button class="shutter" id="btnShoot" aria-label="Vyfotit"></button>
-      <span class="controls-spacer"></span>
+      <button class="gallery-btn" id="btnPD" aria-label="Přepnout ukládání do podsložky PD">
+        <i class="ti ti-folder" aria-hidden="true"></i>
+        <span>PD</span>
+      </button>
     </div>
-    <p class="shutter-hint" id="shutterHint">Vyber stavbu a foť</p>
+    <p class="shutter-hint" id="shutterHint">Vyber objekt a foť</p>
 
     <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
 
@@ -69,13 +75,13 @@
   <!-- ============ PŘEHLED / NAHRÁVÁNÍ ============ -->
   <section class="screen screen--hidden" id="screen-overview">
     <header class="ov-header">
-      <h1>Přehled staveb</h1>
+      <h1>Přehled objektů</h1>
       <p class="ov-sub">Zálohuj fotky do Souborů, jakmile máš čas.</p>
     </header>
 
     <p class="backup-note">Lokální záloha: <b id="backupCount">0 fotek</b> uloženo přímo v telefonu — funguje i bez signálu.</p>
 
-    <button class="new-stavba-btn" id="btnNewStavbaOverview">+ Přidat stavbu</button>
+    <button class="new-stavba-btn" id="btnNewStavbaOverview">+ Přidat objekt</button>
 
     <div class="ov-list" id="ovList"></div>
 
@@ -85,7 +91,7 @@
     <div class="upload-status" id="uploadStatus"></div>
 
     <button class="danger-btn" id="btnResetAll">
-      <i class="ti ti-trash" aria-hidden="true" style="margin-right:6px;"></i>Smazat všechny stavby a fotky
+      <i class="ti ti-trash" aria-hidden="true" style="margin-right:6px;"></i>Smazat všechny objekty a fotky
     </button>
   </section>
 
@@ -102,12 +108,14 @@
 </div>
 
 <div class="lightbox" id="lightbox">
-  <button class="lightbox-close" id="lightboxClose" aria-label="Zavřít"><i class="ti ti-x" aria-hidden="true"></i></button>
+  <button class="lightbox-close" id="lightboxClose" aria-label="Zpět"><i class="ti ti-arrow-left" aria-hidden="true"></i></button>
   <img id="lightboxImg" src="" alt="">
   <div class="lightbox-bar">
     <button id="lightboxDelete"><i class="ti ti-trash" aria-hidden="true"></i>Smazat</button>
   </div>
 </div>
+
+<div class="watermark">by PL</div>
 
 <div class="toast" id="toast"></div>
 

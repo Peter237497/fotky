@@ -1,9 +1,9 @@
-# Stavby Foto — appka pro focení a třídění fotek podle stavby
+# Stavby Foto — appka pro focení a třídění fotek podle objektu
 
 Appka funguje jako "appka" na ploše iPhonu (PWA), i když je to technicky
 webová stránka. Fotky se ukládají lokálně v telefonu, roztříděné podle
-stavby. Kdykoliv budeš chtít, jedním tlačítkem si celou sadu (roztříděnou
-do složek podle stavby) stáhneš jako ZIP soubor do appky Soubory.
+objektu. Kdykoliv budeš chtít, jedním tlačítkem si celou sadu (roztříděnou
+do složek podle objektu) stáhneš jako ZIP soubor do appky Soubory.
 
 Funguje bez Macu, Xcode i App Store — jen se appka nahraje na GitHub Pages
 (zdarma hosting) a na iPhonu se přidá na plochu přes Safari.
@@ -12,7 +12,7 @@ Funguje bez Macu, Xcode i App Store — jen se appka nahraje na GitHub Pages
 
 ## 1. Nahrání appky na GitHub Pages
 
-1. Na GitHubu vytvoř nový **veřejný repozitář**, např. `stavby-foto`.
+1. Na GitHubu vytvoř nový **veřejný repozitář**, např. `objekty-foto`.
 2. Nahraj do něj všechny soubory z téhle appky (`index.html`, `style.css`,
    `app.js`, `manifest.json`, `sw.js`, `icon-192.png`, `icon-512.png`) —
    buď přes web rozhraní GitHubu (drag & drop / "Upload files"), nebo přes
@@ -21,7 +21,7 @@ Funguje bez Macu, Xcode i App Store — jen se appka nahraje na GitHub Pages
 4. U "Source" vyber **Deploy from a branch**, branch `main`, složka `/root`.
    Ulož.
 5. Za chvíli se ti zobrazí adresa appky, typicky:
-   `https://tvoje-jmeno.github.io/stavby-foto/`
+   `https://tvoje-jmeno.github.io/objekty-foto/`
 
 ---
 
@@ -37,27 +37,27 @@ Funguje bez Macu, Xcode i App Store — jen se appka nahraje na GitHub Pages
 
 ## 3. Jak appku používat
 
-- **Přidání stavby**: na hlavní obrazovce klepni na "+ Nová stavba" a
+- **Přidání objektu**: na hlavní obrazovce klepni na "+ Nový objekt" a
   napiš název/adresu. Zůstane uložená v seznamu i pro příště.
-- **Focení**: vyber stavbu v horní liště, klepni na kulaté tlačítko —
+- **Focení**: vyber objekt v horní liště, klepni na kulaté tlačítko —
   otevře se přímo nativní fotoaparát iPhonu s plnou kvalitou a všemi
   ovládacími prvky (ostření, blesk, zoom). Po vyfocení se appka vrátí
-  zpátky a fotku rovnou zařadí pod vybranou stavbu.
-- **Přejmenování stavby**: tužka vedle výběru stavby na hlavní
-  obrazovce, nebo tužka u každé stavby v Přehledu. Fotky se automaticky
+  zpátky a fotku rovnou zařadí pod vybraný objekt.
+- **Přejmenování objektu**: tužka vedle výběru objektu na hlavní
+  obrazovce, nebo tužka u každého objektu v Přehledu. Fotky se automaticky
   přesunou pod nový název.
-- **Galerie**: ikona vlevo od spouště ti ukáže všechny fotky aktuální
-  stavby. Klepnutím na fotku ji otevřeš na celou obrazovku, odkud ji
+- **Galerie**: ikona vlevo od spouště ti ukáže všechny fotky
+  aktuálního objektu. Klepnutím na fotku ji otevřeš na celou obrazovku, odkud ji
   můžeš i smazat.
-- **Přehled**: dole v navigaci — vidíš všechny stavby, kolik fotek u
+- **Přehled**: dole v navigaci — vidíš všechny objekty, kolik fotek u
   nich je, a kolik fotek appka drží lokálně v telefonu.
 - **Záloha (ZIP)**: tlačítko "Zálohovat vše do Souborů (ZIP)" sbalí
-  všechny fotky (roztříděné do složek podle stavby) do jednoho souboru
+  všechny fotky (roztříděné do složek podle objektu) do jednoho souboru
   a nabídne ho k uložení do appky Soubory / iCloud Drive. Tohle je
   jediný způsob, jak fotky z appky dostat ven — appka sama nikam nic
   automaticky neposílá.
 - **Smazání všeho**: dole v Přehledu je tlačítko "Smazat všechny
-  stavby a fotky" — nevratná akce s potvrzením, pro vyčištění appky
+  objekty a fotky" — nevratná akce s potvrzením, pro vyčištění appky
   po předání zálohy dál.
 
 Appka funguje i offline — fotky se ukládají do telefonu a čekají, dokud

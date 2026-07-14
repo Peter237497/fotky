@@ -56,7 +56,7 @@ function formatFilenameTimestamp(ts) {
     + `-${pad(d.getMilliseconds(), 3)}`; // ms na konci jen pro jistotu unikátnosti
 }
 
-function addPhoto(stavba, blob) {
+function addPhoto(stavba, blob, subfolder = "") {
   return new Promise((resolve, reject) => {
     const now = Date.now();
     const record = {
@@ -64,6 +64,7 @@ function addPhoto(stavba, blob) {
       blob,
       filename: `${formatFilenameTimestamp(now)}.jpg`,
       timestamp: now,
+      subfolder,
       uploaded: 0
     };
     const r = tx("photos", "readwrite").add(record);
@@ -166,6 +167,15 @@ function fmtDate(ts) {
 }
 
 // ---------- Render: hlavní obrazovka ----------
+// ---------- PD podsložka ----------
+let pdMode = false;
+
+function updatePDButton() {
+  const btn = $("#btnPD");
+  btn.classList.toggle("active", pdMode);
+  btn.disabled = !currentStavba;
+}
+
 async function renderMain() {
   const stavby = await getAllStavby();
   const select = $("#stavbaSelect");
@@ -173,7 +183,7 @@ async function renderMain() {
 
   if (stavby.length === 0) {
     const opt = document.createElement("option");
-    opt.textContent = "— nejdřív přidej stavbu —";
+    opt.textContent = "— nejdřív přidej objekt —";
     opt.value = "";
     select.appendChild(opt);
     currentStavba = null;
@@ -192,8 +202,11 @@ async function renderMain() {
 
   localStorage.setItem("currentStavba", currentStavba || "");
   $("#tbDate").textContent = fmtDate(Date.now());
-  $("#shutterHint").textContent = currentStavba ? `Fotíš: ${currentStavba}` : "Vyber nebo přidej stavbu";
+  $("#shutterHint").textContent = currentStavba
+    ? `Fotíš: ${currentStavba}${pdMode ? " → PD" : ""}`
+    : "Vyber nebo přidej objekt";
   $("#btnShoot").disabled = !currentStavba;
+  updatePDButton();
 
   await renderThumbs();
 }
@@ -214,6 +227,12 @@ async function renderThumbs() {
     const img = document.createElement("img");
     img.src = URL.createObjectURL(p.blob);
     div.appendChild(img);
+    if (p.subfolder) {
+      const badge = document.createElement("span");
+      badge.className = "thumb-badge";
+      badge.textContent = p.subfolder;
+      div.appendChild(badge);
+    }
     div.addEventListener("click", () => openLightbox(p));
     thumbsEl.appendChild(div);
   });
@@ -221,41 +240,42 @@ async function renderThumbs() {
 
 // ---------- Přidání nové stavby ----------
 $("#btnNewStavba").addEventListener("click", async () => {
-  const name = prompt("Název / adresa nové stavby:");
+  const name = prompt("Název / adresa nového objektu:");
   if (!name || !name.trim()) return;
   const clean = name.trim();
   await addStavba(clean);
   currentStavba = clean;
   await renderMain();
-  toast(`Stavba "${clean}" přidána`);
+  toast(`Objekt "${clean}" přidán`);
 });
 
 $("#btnNewStavbaOverview").addEventListener("click", async () => {
-  const name = prompt("Název / adresa nové stavby:");
+  const name = prompt("Název / adresa nového objektu:");
   if (!name || !name.trim()) return;
   const clean = name.trim();
   await addStavba(clean);
   if (!currentStavba) currentStavba = clean; // první stavba se rovnou nastaví jako aktivní
   await renderMain();
   await renderOverview();
-  toast(`Stavba "${clean}" přidána`);
+  toast(`Objekt "${clean}" přidán`);
 });
 
 $("#stavbaSelect").addEventListener("change", async (e) => {
   currentStavba = e.target.value;
   localStorage.setItem("currentStavba", currentStavba);
-  await renderThumbs();
+  pdMode = false; // ať přepnutí objektu neposílá fotky omylem do cizí PD
+  await renderMain();
 });
 
 // ---------- Přejmenování stavby ----------
 async function promptRenameStavba(oldName) {
-  const newName = prompt("Nový název / adresa stavby:", oldName);
+  const newName = prompt("Nový název / adresa objektu:", oldName);
   if (!newName || !newName.trim() || newName.trim() === oldName) return;
   const clean = newName.trim();
 
   const existing = await getAllStavby();
   if (existing.some(s => s.name === clean)) {
-    toast("Stavba s tímhle názvem už existuje");
+    toast("Objekt s tímhle názvem už existuje");
     return;
   }
 
@@ -266,14 +286,20 @@ async function promptRenameStavba(oldName) {
 }
 
 $("#btnEditStavba").addEventListener("click", () => {
-  if (!currentStavba) { toast("Nejdřív přidej stavbu"); return; }
+  if (!currentStavba) { toast("Nejdřív přidej objekt"); return; }
   promptRenameStavba(currentStavba);
 });
 
 $("#ovList").addEventListener("click", (e) => {
-  const btn = e.target.closest(".ov-edit-btn");
-  if (!btn) return;
-  promptRenameStavba(btn.dataset.name).then(renderOverview);
+  const pill = e.target.closest(".ov-name-pill");
+  if (pill) {
+    promptRenameStavba(pill.dataset.name).then(renderOverview);
+    return;
+  }
+  const item = e.target.closest(".ov-item");
+  if (item) {
+    openGalleryFor(item.dataset.name, "overview");
+  }
 });
 
 // =========================================================
@@ -284,26 +310,37 @@ $("#btnShoot").addEventListener("click", () => {
   $("#cameraInput").click();
 });
 
+$("#btnPD").addEventListener("click", () => {
+  if (!currentStavba) { toast("Nejdřív vyber objekt"); return; }
+  pdMode = !pdMode;
+  updatePDButton();
+  $("#shutterHint").textContent = `Fotíš: ${currentStavba}${pdMode ? " → PD" : ""}`;
+  toast(pdMode ? "Fotky teď jdou do podsložky PD" : "Fotky jdou zpátky do hlavní složky objektu");
+});
+
 $("#cameraInput").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   e.target.value = "";
   if (!file || !currentStavba) return;
-  await addPhoto(currentStavba, file);
+  await addPhoto(currentStavba, file, pdMode ? "PD" : "");
   await renderMain();
-  toast("Uloženo ✓");
+  toast(pdMode ? "Uloženo do PD ✓" : "Uloženo ✓");
 });
 
 // =========================================================
 // GALERIE + LIGHTBOX
 // =========================================================
-$("#btnGallery").addEventListener("click", async () => {
-  if (!currentStavba) { toast("Nejdřív vyber stavbu"); return; }
-  $("#galTitle").textContent = `Galerie — ${currentStavba}`;
+let galleryReturnScreen = "main";
+
+async function openGalleryFor(name, returnScreen) {
+  if (!name) { toast("Nejdřív vyber objekt"); return; }
+  galleryReturnScreen = returnScreen;
+  $("#galTitle").textContent = `Galerie — ${name}`;
   const grid = $("#galGrid");
   grid.innerHTML = "";
-  const photos = await getPhotosByStavba(currentStavba);
+  const photos = await getPhotosByStavba(name);
   if (photos.length === 0) {
-    grid.innerHTML = `<p class="gal-empty">Zatím žádné fotky u téhle stavby.</p>`;
+    grid.innerHTML = `<p class="gal-empty">Zatím žádné fotky u tohohle objektu.</p>`;
   } else {
     photos.forEach(p => {
       const div = document.createElement("div");
@@ -311,14 +348,22 @@ $("#btnGallery").addEventListener("click", async () => {
       const img = document.createElement("img");
       img.src = URL.createObjectURL(p.blob);
       div.appendChild(img);
+      if (p.subfolder) {
+        const badge = document.createElement("span");
+        badge.className = "thumb-badge";
+        badge.textContent = p.subfolder;
+        div.appendChild(badge);
+      }
       div.addEventListener("click", () => openLightbox(p));
       grid.appendChild(div);
     });
   }
   switchScreen("gallery");
-});
+}
 
-$("#btnGalBack").addEventListener("click", () => switchScreen("main"));
+$("#btnGallery").addEventListener("click", () => openGalleryFor(currentStavba, "main"));
+
+$("#btnGalBack").addEventListener("click", () => switchScreen(galleryReturnScreen));
 
 function openLightbox(photo) {
   currentLightboxPhoto = photo;
@@ -337,10 +382,11 @@ $("#lightbox").addEventListener("click", (e) => { if (e.target.id === "lightbox"
 $("#lightboxDelete").addEventListener("click", async () => {
   if (!currentLightboxPhoto) return;
   if (!confirm("Smazat tuto fotku z appky? Pokud jsi ji už uložil/a do Fotek, tam zůstane.")) return;
+  const name = currentLightboxPhoto.stavba;
   await deletePhoto(currentLightboxPhoto.id);
   closeLightbox();
   await renderMain();
-  $("#btnGallery").click();
+  await openGalleryFor(name, galleryReturnScreen);
 });
 
 // ---------- Navigace ----------
@@ -366,7 +412,7 @@ async function renderOverview() {
   $("#backupCount").textContent = `${allPhotos.length} fotek`;
 
   if (stavby.length === 0) {
-    listEl.innerHTML = `<p style="color:var(--text-dim); font-family:'IBM Plex Mono',monospace; font-size:13px;">Zatím žádné stavby. Přidej první na hlavní obrazovce.</p>`;
+    listEl.innerHTML = `<p style="color:var(--text-dim); font-family:'IBM Plex Mono',monospace; font-size:13px;">Zatím žádné objekty. Přidej první na hlavní obrazovce.</p>`;
   }
 
   stavby.forEach(s => {
@@ -374,14 +420,15 @@ async function renderOverview() {
 
     const item = document.createElement("div");
     item.className = "ov-item";
+    item.dataset.name = s.name;
     item.innerHTML = `
       <div>
-        <div class="ov-item-name">${escapeHtml(s.name)}</div>
+        <button class="ov-name-pill" data-name="${escapeHtml(s.name)}" aria-label="Přejmenovat stavbu">
+          <span>${escapeHtml(s.name)}</span>
+          <i class="ti ti-pencil" aria-hidden="true"></i>
+        </button>
         <div class="ov-item-meta">${photos.length} snímků celkem</div>
       </div>
-      <button class="ov-edit-btn" data-name="${escapeHtml(s.name)}" aria-label="Přejmenovat">
-        <i class="ti ti-pencil" aria-hidden="true"></i>
-      </button>
     `;
     listEl.appendChild(item);
   });
@@ -396,7 +443,7 @@ $("#btnResetAll").addEventListener("click", async () => {
   }
 
   const ok = confirm(
-    `Opravdu smazat VŠECHNY stavby (${stavby.length}) a VŠECHNY fotky (${allPhotos.length}) z appky?\n\nTohle nejde vzít zpět. Fotky, které jsi ještě nezálohoval/a přes "Zálohovat vše do Souborů (ZIP)", se ztratí.`
+    `Opravdu smazat VŠECHNY objekty (${stavby.length}) a VŠECHNY fotky (${allPhotos.length}) z appky?\n\nTohle nejde vzít zpět. Fotky, které jsi ještě nezálohoval/a přes "Zálohovat vše do Souborů (ZIP)", se ztratí.`
   );
   if (!ok) return;
 
@@ -416,13 +463,14 @@ $("#btnExportZip").addEventListener("click", async () => {
   status.textContent = "Balím zálohu…";
   const zip = new JSZip();
   allPhotos.forEach(p => {
-    const folder = zip.folder(p.stavba || "Neurčeno");
-    folder.file(p.filename, p.blob);
+    const base = zip.folder(p.stavba || "Neurčeno");
+    const target = p.subfolder ? base.folder(p.subfolder) : base;
+    target.file(p.filename, p.blob);
   });
 
   const content = await zip.generateAsync({ type: "blob" });
   const dateStr = new Date().toISOString().slice(0, 10);
-  const filename = `stavby_zaloha_${dateStr}.zip`;
+  const filename = `objekty_zaloha_${dateStr}.zip`;
 
   const url = URL.createObjectURL(content);
   const a = document.createElement("a");
