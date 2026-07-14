@@ -41,20 +41,6 @@
 
     <button class="new-stavba-btn" id="btnNewStavba">+ Nová stavba</button>
 
-    <div class="camera-wrap" id="cameraWrap">
-      <video id="cameraVideo" autoplay playsinline muted></video>
-      <div class="camera-frame"></div>
-      <div class="camera-fallback" id="cameraFallback" hidden>
-        Náhled fotoaparátu se nepodařilo spustit.<br>Použij tlačítko nativního fotoaparátu vpravo.
-      </div>
-      <div class="zoom-bar" id="zoomBar" hidden>
-        <i class="ti ti-zoom-out" aria-hidden="true"></i>
-        <input type="range" id="zoomSlider" min="1" max="4" step="0.1" value="1">
-        <i class="ti ti-zoom-in" aria-hidden="true"></i>
-        <span id="zoomLabel">1.0x</span>
-      </div>
-    </div>
-
     <div class="controls-row">
       <button class="icon-btn" id="btnGallery" aria-label="Galerie">
         <i class="ti ti-photo" aria-hidden="true"></i>
@@ -62,9 +48,7 @@
       <button class="shutter" id="btnShoot" aria-label="Vyfotit">
         <span class="shutter-ring"></span>
       </button>
-      <button class="icon-btn" id="btnNative" aria-label="Nativní fotoaparát">
-        <i class="ti ti-aperture" aria-hidden="true"></i>
-      </button>
+      <span class="controls-spacer"></span>
     </div>
     <p class="shutter-hint" id="shutterHint">Vyber stavbu a foť</p>
 
@@ -135,7 +119,6 @@
   <button class="lightbox-close" id="lightboxClose" aria-label="Zavřít"><i class="ti ti-x" aria-hidden="true"></i></button>
   <img id="lightboxImg" src="" alt="">
   <div class="lightbox-bar">
-    <button id="lightboxSavePhotos"><i class="ti ti-download" aria-hidden="true"></i>Uložit do Fotek</button>
     <button id="lightboxDelete"><i class="ti ti-trash" aria-hidden="true"></i>Smazat</button>
   </div>
 </div>

@@ -156,7 +156,6 @@ function switchScreen(name) {
   document.querySelectorAll(".tab").forEach(t => {
     t.classList.toggle("tab--active", t.dataset.screen === name);
   });
-  if (name === "main") startCamera(); else stopCamera();
   if (name === "overview") renderOverview();
 }
 
@@ -265,136 +264,10 @@ $("#ovList").addEventListener("click", (e) => {
 });
 
 // =========================================================
-// KAMERA — živý náhled + zoom (getUserMedia)
+// FOCENÍ — otevírá rovnou nativní fotoaparát iPhonu
 // =========================================================
-let cameraStream = null;
-let cameraTrack = null;
-let zoomCaps = null; // {min, max, step} pokud hardware podporuje skutečný zoom
-let digitalZoom = 1; // fallback, pokud hardware zoom není k dispozici
-
-async function startCamera() {
-  if (cameraStream) return; // už běží
-  const video = $("#cameraVideo");
-  const fallback = $("#cameraFallback");
-  const zoomBar = $("#zoomBar");
-
-  try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-      audio: false
-    });
-    video.srcObject = cameraStream;
-    fallback.hidden = true;
-    cameraTrack = cameraStream.getVideoTracks()[0];
-
-    const caps = cameraTrack.getCapabilities ? cameraTrack.getCapabilities() : {};
-    if (caps.zoom) {
-      zoomCaps = caps.zoom;
-      const slider = $("#zoomSlider");
-      slider.min = caps.zoom.min;
-      slider.max = caps.zoom.max;
-      slider.step = caps.zoom.step || 0.1;
-      slider.value = caps.zoom.min;
-      zoomBar.hidden = false;
-      digitalZoom = 1;
-      video.style.transform = "";
-    } else {
-      zoomCaps = null;
-      zoomBar.hidden = false; // digitální zoom fallback pořád nabídneme
-      $("#zoomSlider").min = 1;
-      $("#zoomSlider").max = 4;
-      $("#zoomSlider").step = 0.1;
-      $("#zoomSlider").value = 1;
-    }
-  } catch (err) {
-    console.error("Kamera se nepodařila spustit:", err);
-    fallback.hidden = false;
-    zoomBar.hidden = true;
-  }
-}
-
-function stopCamera() {
-  if (cameraStream) {
-    cameraStream.getTracks().forEach(t => t.stop());
-    cameraStream = null;
-    cameraTrack = null;
-  }
-}
-
-$("#zoomSlider").addEventListener("input", async (e) => {
-  const v = parseFloat(e.target.value);
-  $("#zoomLabel").textContent = v.toFixed(1) + "x";
-  if (zoomCaps && cameraTrack) {
-    try {
-      await cameraTrack.applyConstraints({ advanced: [{ zoom: v }] });
-    } catch (err) {
-      console.warn("applyConstraints zoom selhalo:", err);
-    }
-  } else {
-    digitalZoom = v;
-    $("#cameraVideo").style.transform = `scale(${v})`;
-  }
-});
-
-function captureFromVideo() {
-  const video = $("#cameraVideo");
-  const canvas = document.createElement("canvas");
-  const vw = video.videoWidth || 1280;
-  const vh = video.videoHeight || 960;
-  canvas.width = vw;
-  canvas.height = vh;
-  const ctx = canvas.getContext("2d");
-
-  if (!zoomCaps && digitalZoom > 1) {
-    // digitální zoom: vykreslíme jen prostřední oříznutý výřez, zvětšený na celé plátno
-    const sw = vw / digitalZoom;
-    const sh = vh / digitalZoom;
-    const sx = (vw - sw) / 2;
-    const sy = (vh - sh) / 2;
-    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, vw, vh);
-  } else {
-    ctx.drawImage(video, 0, 0, vw, vh);
-  }
-
-  return new Promise((resolve) => {
-    canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.92);
-  });
-}
-
-// ---------- Uložit do Fotek (systémové sdílecí okno) ----------
-async function saveToPhotosApp(blob, filename) {
-  try {
-    const file = new File([blob], filename, { type: "image/jpeg" });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file] });
-      return;
-    }
-  } catch (err) {
-    if (err && err.name === "AbortError") return; // uživatel zrušil — v pořádku
-    console.warn("navigator.share selhalo, používám záložní cestu:", err);
-  }
-  // Záložní cesta: otevři obrázek v nové kartě, uživatel ho uloží přes "Přidat do Fotek"
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
-  toast("Podrž prst na obrázku a zvol „Přidat do Fotek“");
-}
-
-// ---------- Focení (živá kamera) ----------
-$("#btnShoot").addEventListener("click", async () => {
+$("#btnShoot").addEventListener("click", () => {
   if (!currentStavba) return;
-  if (!cameraStream) {
-    $("#cameraInput").click(); // kamera nedostupná — nativní záloha
-    return;
-  }
-  const blob = await captureFromVideo();
-  const saved = await addPhoto(currentStavba, blob);
-  await renderMain();
-  toast("Uloženo do appky ✓");
-  saveToPhotosApp(blob, saved.filename);
-});
-
-// ---------- Nativní fotoaparát (plné ruční ovládání) ----------
-$("#btnNative").addEventListener("click", () => {
   $("#cameraInput").click();
 });
 
@@ -402,10 +275,9 @@ $("#cameraInput").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   e.target.value = "";
   if (!file || !currentStavba) return;
-  const saved = await addPhoto(currentStavba, file);
+  await addPhoto(currentStavba, file);
   await renderMain();
-  toast("Uloženo do appky ✓");
-  saveToPhotosApp(file, saved.filename);
+  toast("Uloženo ✓");
 });
 
 // =========================================================
@@ -448,11 +320,6 @@ function closeLightbox() {
 
 $("#lightboxClose").addEventListener("click", closeLightbox);
 $("#lightbox").addEventListener("click", (e) => { if (e.target.id === "lightbox") closeLightbox(); });
-
-$("#lightboxSavePhotos").addEventListener("click", () => {
-  if (!currentLightboxPhoto) return;
-  saveToPhotosApp(currentLightboxPhoto.blob, currentLightboxPhoto.filename);
-});
 
 $("#lightboxDelete").addEventListener("click", async () => {
   if (!currentLightboxPhoto) return;
@@ -819,7 +686,6 @@ $("#btnUploadAll").addEventListener("click", handleUploadRequest);
   db = await openDB();
   initMsal();
   await renderMain();
-  startCamera();
   await completeRedirectIfAny();
 
   if ("serviceWorker" in navigator) {

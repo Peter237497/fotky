@@ -38,12 +38,7 @@ body{
   display: flex;
   flex-direction: column;
   padding-bottom: calc(78px + env(safe-area-inset-bottom));
-  background-image:
-    linear-gradient(var(--line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line) 1px, transparent 1px);
-  background-size: 32px 32px;
-  background-position: -1px -1px;
-  background-color: var(--bg);
+  background: var(--bg);
   position: relative;
 }
 
@@ -52,18 +47,19 @@ body{
 
 /* ---------- Title block (architektonické razítko) ---------- */
 .titleblock{
-  border: 2px solid var(--accent-2);
-  border-radius: 4px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
   background: var(--bg-panel);
-  padding: 12px 14px;
+  padding: 14px 16px;
   margin-top: calc(10px + env(safe-area-inset-top));
+  box-shadow: 0 1px 0 rgba(0,0,0,0.2);
 }
 .titleblock-row{
   display:flex; align-items:center; gap:10px;
   padding: 6px 0;
 }
 .titleblock-row + .titleblock-row{
-  border-top: 1px dashed var(--line);
+  border-top: 1px solid var(--line);
 }
 .titleblock-row--split{ justify-content: space-between; }
 .titleblock-row--split > div{ display:flex; align-items:baseline; gap:8px; }
@@ -104,15 +100,15 @@ body{
 .new-stavba-btn{
   margin: 10px 0 0;
   width: 100%;
-  background: transparent;
-  border: 1.5px dashed var(--line);
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
   color: var(--text-dim);
   font-family: 'IBM Plex Mono', monospace;
   font-size: 13px;
-  padding: 10px;
-  border-radius: 8px;
+  padding: 11px;
+  border-radius: 10px;
 }
-.new-stavba-btn:active{ background: var(--bg-panel); }
+.new-stavba-btn:active{ background: var(--bg-panel-2); }
 
 /* ---------- Shutter ---------- */
 .shutter-wrap{
@@ -237,6 +233,7 @@ body{
   display:flex;
   background: var(--bg-panel);
   border-top: 1px solid var(--line);
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.25);
   padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
 }
 .tab{
@@ -279,51 +276,13 @@ body{
   .shutter, .toast{ transition: none; }
 }
 
-/* ---------- Kamera ---------- */
-.camera-wrap{
-  position: relative;
-  aspect-ratio: 3/4;
-  background: #000;
-  border-radius: 14px;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-.camera-wrap video{
-  width: 100%; height: 100%; object-fit: cover;
-  transform-origin: center;
-}
-.camera-frame{
-  position:absolute; inset:14px;
-  border: 1px solid rgba(124,230,166,0.3);
-  border-radius: 8px;
-  pointer-events: none;
-}
-.camera-fallback{
-  position:absolute; inset:0;
-  display:flex; align-items:center; justify-content:center;
-  color: var(--text-dim);
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px;
-  text-align: center;
-  padding: 20px;
-}
-.zoom-bar{
-  position:absolute; left:12px; right:12px; bottom:10px;
-  display:flex; align-items:center; gap:8px;
-  background: rgba(11,18,15,0.55);
-  padding: 6px 10px;
-  border-radius: 20px;
-}
-.zoom-bar input[type=range]{ flex:1; accent-color: var(--accent); }
-.zoom-bar span{ color: var(--text); font-family:'IBM Plex Mono',monospace; font-size:11px; min-width:30px; }
-.zoom-bar i{ color: var(--accent-2); font-size: 14px; }
-
 .controls-row{
-  display:flex; align-items:center; justify-content:center; gap:22px;
-  margin-bottom: 16px;
+  display:flex; align-items:center; justify-content:center; gap:26px;
+  margin: 28px 0 16px;
 }
+.controls-spacer{ width:44px; height:44px; }
 .icon-btn{
-  width:44px; height:44px; border-radius:10px;
+  width:44px; height:44px; border-radius:12px;
   background: var(--bg-panel);
   border: 1px solid var(--line);
   color: var(--accent-2);
