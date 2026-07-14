@@ -260,6 +260,42 @@ $("#btnNewStavbaOverview").addEventListener("click", async () => {
   toast(`Objekt "${clean}" přidán`);
 });
 
+$("#btnImportTxt").addEventListener("click", () => $("#importInput").click());
+
+$("#importInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+
+  const text = await file.text();
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) { toast("Soubor je prázdný."); return; }
+
+  const existing = await getAllStavby();
+  const existingNames = new Set(existing.map(s => s.name));
+  let added = 0;
+
+  for (const line of lines) {
+    if (existingNames.has(line)) continue;
+    await addStavba(line);
+    existingNames.add(line);
+    added++;
+  }
+
+  if (!currentStavba && added > 0) {
+    const firstNew = lines.find(l => existingNames.has(l));
+    currentStavba = firstNew;
+  }
+
+  await renderMain();
+  await renderOverview();
+
+  const skipped = lines.length - added;
+  toast(skipped > 0
+    ? `Přidáno ${added} objektů (${skipped} už existovalo)`
+    : `Přidáno ${added} objektů`);
+});
+
 $("#stavbaSelect").addEventListener("change", async (e) => {
   currentStavba = e.target.value;
   localStorage.setItem("currentStavba", currentStavba);
